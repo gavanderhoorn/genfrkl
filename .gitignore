@@ -1,0 +1,4 @@
+*.pyc
+._*
+*~
+CATKIN_IGNORE
