@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package>
+  <name>genkl</name>
+  <version>0.0.1</version>
+  <description>Fanuc Karel ROS message generators (for use with simple_message).</description>
+  <author>G.A. vd. Hoorn (TU Delft Robotics Institute)</author>
+  <maintainer email="g.a.vanderhoorn@tudelft.nl">G.A. vd. Hoorn (TU Delft Robotics Institute)</maintainer>
+  <license>BSD</license>
+
+  <url type="bugtracker">https://github.com/gavanderhoorn/genkl/issues</url>
+  <url type="repository">https://github.com/gavanderhoorn/genkl</url>
+
+  <buildtool_depend version_gte="0.5.78">catkin</buildtool_depend>
+
+  <build_depend>genmsg</build_depend>
+
+  <run_depend>genmsg</run_depend>
+
+  <export>
+    <message_generator>kl</message_generator>
+    <rosdoc config="rosdoc.yaml"/>
+    <architecture_independent/>
+  </export>
+</package>
