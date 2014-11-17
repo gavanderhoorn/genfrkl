@@ -22,11 +22,11 @@
 -- 
 @{
 import genmsg.msgs
-import genkl
+import genfrkl
 
 
 # 10
-mapped_msg_type = genkl.msg_to_simple_message_type(spec)
+mapped_msg_type = genfrkl.msg_to_simple_message_type(spec)
 
 # '000A'
 msg_mapped_id_hex = '%04X' % mapped_msg_type

@@ -18,11 +18,11 @@
 -- 
 @{
 import genmsg.msgs
-import genkl
+import genfrkl
 
 
 # 10
-mapped_msg_type = genkl.msg_to_simple_message_type(spec)
+mapped_msg_type = genfrkl.msg_to_simple_message_type(spec)
 
 # '000A'
 msg_mapped_id_hex = '%04X' % mapped_msg_type
@@ -54,7 +54,7 @@ TYPE
     @(kl_structname) FROM @(kl_libname) = STRUCTURE
 @{
 for field in spec.parsed_fields():
-  kl_type = genkl.msg_type_to_kl(spec.package, field.type)
+  kl_type = genfrkl.msg_type_to_kl(spec.package, field.type)
   print "        %-12s : %s" % (field.name, kl_type)
 }@
     ENDSTRUCTURE
@@ -72,6 +72,6 @@ CONST
 for constant in spec.constants:
   val = constant.val
   if constant.type is 'string':
-    val = genkl.karel_str_quote(val)
+    val = genfrkl.karel_str_quote(val)
   print "    %-12s = %s" % (constant.name, val)
 }@

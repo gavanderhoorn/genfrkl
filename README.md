@@ -1,4 +1,4 @@
-# genkl
+# genfrkl
 
 ROS Message generator for Fanuc Karel.
 

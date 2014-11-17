@@ -18,11 +18,11 @@
 -- 
 @{
 import genmsg.msgs
-import genkl
+import genfrkl
 
 
 # 10
-mapped_msg_type = genkl.msg_to_simple_message_type(spec)
+mapped_msg_type = genfrkl.msg_to_simple_message_type(spec)
 
 # '000A'
 msg_mapped_id_hex = '%04X' % mapped_msg_type
@@ -67,8 +67,8 @@ PROGRAM @(kl_libname)
 %INCLUDE ktype_sz.th
 @{
 for field in spec.parsed_fields():
-  if not genkl.is_primitive_kl_type(field.type):
-    base_name = genkl.map_complex_type_to_routine_prefix(spec.package, field.type)
+  if not genfrkl.is_primitive_kl_type(field.type):
+    base_name = genfrkl.map_complex_type_to_routine_prefix(spec.package, field.type)
     print "%%INCLUDE ros\lib%s.th" % base_name
 }@
 
@@ -86,7 +86,7 @@ for field in spec.parsed_fields():
     -- internal use only
     --JNTPOS_ID_   = @(kl_rpname.upper())_PID_C
     --JNTPOS_STR_  = 'msg_type_todo'
-    --JNTPOS_LEN_  = @('%d' % genkl.calculate_msg_length(spec))
+    --JNTPOS_LEN_  = @('%d' % genfrkl.calculate_msg_length(spec))
     -- TODO: fixup constant gen
 
 
@@ -99,8 +99,8 @@ for field in spec.parsed_fields():
 --------------------------------------------------------------------------------
 @{
 for field in spec.parsed_fields():
-  if not genkl.is_primitive_kl_type(field.type):
-    base_name = genkl.map_complex_type_to_routine_prefix(spec.package, field.type)
+  if not genfrkl.is_primitive_kl_type(field.type):
+    base_name = genfrkl.map_complex_type_to_routine_prefix(spec.package, field.type)
     print "%%INCLUDE ros\lib%s.h" % base_name
 }@
 
@@ -138,7 +138,7 @@ BEGIN
 #  - len complex types: COMPLEX_TYPE_len(field)
 # 
 }
-    RETURN (@(genkl.calculate_msg_length(spec)))
+    RETURN (@(genfrkl.calculate_msg_length(spec)))
 END @(kl_rpname)_len
 
 
@@ -169,7 +169,7 @@ END @(kl_rpname)_ctor
 
 
 ROUTINE @(kl_rpname)_rset
-@[if genkl.has_arrays(spec)]@
+@[if genfrkl.has_arrays(spec)]@
 VAR
     i__          : INTEGER -- TODO: only add vars if necessary
     array_len__  : INTEGER
@@ -178,11 +178,11 @@ BEGIN
     -- reset each field to its default value
 @{
 for field in spec.parsed_fields():
-  kl_type = genkl.msg_type_to_kl(spec.package, field.type)
+  kl_type = genfrkl.msg_type_to_kl(spec.package, field.type)
 
   # primitives can be zero-ed using a simple statement
-  if genkl.is_primitive_kl_type(field.type):
-    kl_zero = genkl.msg_type_to_zero_value(spec.package, field.type)
+  if genfrkl.is_primitive_kl_type(field.type):
+    kl_zero = genfrkl.msg_type_to_zero_value(spec.package, field.type)
 
     # can only reset arrays one field at a time
     if field.is_array:
@@ -193,14 +193,14 @@ for field in spec.parsed_fields():
 
     # otherwise primitive types can just be set to their 'zero value'
     else:
-      kl_zero = genkl.msg_type_to_zero_value(spec.package, field.type)
+      kl_zero = genfrkl.msg_type_to_zero_value(spec.package, field.type)
       print "    this.%s = %s" % (field.name, kl_zero)
 
   # not a primitive: assume complex type has '_rset' routine defined somewhere
   else:
     print "    -- TODO: this needs properly generated %INCLUDE directives"
 
-    pfx = genkl.map_complex_type_to_routine_prefix(spec.package, field.type)
+    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.package, field.type)
 
     # can only reset arrays one field at a time
     if field.is_array:
@@ -231,10 +231,10 @@ BEGIN
     --       reads as much as possible)
 @{
 for field in spec.parsed_fields():
-  kl_type = genkl.msg_type_to_kl(spec.package, field.type)
+  kl_type = genfrkl.msg_type_to_kl(spec.package, field.type)
 
   # primitives can be deserialised using a simple statement
-  if genkl.is_primitive_kl_type(field.type):
+  if genfrkl.is_primitive_kl_type(field.type):
 
     # can only read arrays one field at a time
     if field.is_array:
@@ -255,7 +255,7 @@ for field in spec.parsed_fields():
   else:
     print "    -- TODO: this needs properly generated %INCLUDE directives"
 
-    pfx = genkl.map_complex_type_to_routine_prefix(spec.package, field.type)
+    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.package, field.type)
 
     # can only read arrays one field at a time
     if field.is_array:
@@ -297,10 +297,10 @@ BEGIN
     --       writes as much as possible)
 @{
 for field in spec.parsed_fields():
-  kl_type = genkl.msg_type_to_kl(spec.package, field.type)
+  kl_type = genfrkl.msg_type_to_kl(spec.package, field.type)
 
   # primitives can be serialised using a simple statement
-  if genkl.is_primitive_kl_type(field.type):
+  if genfrkl.is_primitive_kl_type(field.type):
 
     # can only write arrays one field at a time
     if field.is_array:
@@ -321,7 +321,7 @@ for field in spec.parsed_fields():
   else:
     print "    -- TODO: this needs properly generated %INCLUDE directives"
 
-    pfx = genkl.map_complex_type_to_routine_prefix(spec.package, field.type)
+    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.package, field.type)
 
     # can only write arrays one field at a time
     if field.is_array:
