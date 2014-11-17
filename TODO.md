@@ -14,7 +14,8 @@
     has been deserialised already)
   - implement `x_tstr()`, `x_len()`, `x_sread()` and `x_swrte()`
   - optimise generated READ/WRITE statements:
-    - group primitive READs/WRITEs
+X   - group primitive READs/WRITEs
     - unroll array READs/WRITEs
   - add support for variable length arrays
   - add array helper vars only when necessary (there are arrays in msg)
+  - remove code duplication in '_wrte' and '_read' routine templates.
