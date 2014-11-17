@@ -107,7 +107,9 @@ def calculate_msg_length(spec):
     # we know header length
     if msg_has_sm_header(spec):
         len += (4 * 3)
-    
+
+    # TODO: implement length calculation
+
     return len
 
 
@@ -116,7 +118,7 @@ def map_complex_type_to_routine_prefix(package_context, _type):
     # output: 'rp000A'
     (base_type, is_array, array_len) = genmsg.msgs.parse_type(_type)
 
-    assert (not genmsg.msgs.is_builtin(base_type))
+    assert (not genmsg.msgs.is_builtin(base_type)), "'%s' is a built-in, cannot map" % base_type
 
     #print "-- map_complex_type_to_routine_prefix: got '%s' ('%s')" % (_type, base_type)
 
@@ -129,6 +131,7 @@ def map_complex_type_to_routine_prefix(package_context, _type):
 
 def msg_to_simple_message_type(spec):
     # assume there is a constant in the message spec that we use
+    # TODO: implement msg type to msg identifier lookup library
     for constant in spec.constants:
         if constant.name == 'MSG_TYPE':
             return constant.val
@@ -142,3 +145,50 @@ def has_arrays(spec):
         if field.is_array:
             return True
     return False
+
+
+def get_array_len(type):
+    """ Returns the length of an array
+    """
+    (base_type, is_array, array_len) = genmsg.msgs.parse_type(type)
+    assert (is_array), "Only array fields have an array length"
+    return array_len
+
+
+def group_fields(spec):
+    """ function walks the list of parsed fields and creates groups
+    of fields that may be processed in a single READ / WRITE statement.
+
+    In essence, this groups subsequent primitive fields with each other,
+    while putting each non-primitive field in its own group (as they
+    require the use of 'special' deserialisation functions).
+
+    Arrays are considered non-primitive, for reasons of readability and
+    error reporting (overly long READ / WRITE statements will make it hard to
+    correctly identify the source of errors).
+    """
+    field_groups = []
+    field_group = []
+
+    for field in spec.parsed_fields():
+        # readability
+        primitive = is_primitive_kl_type(field.type)
+        is_array  = field.is_array
+
+        # every field that is either an array or a non-primitive should end
+        # up in its own group
+        if (not primitive) or is_array:
+            if len(field_group) > 0:
+                field_groups.append(field_group)
+            field_group = []
+            field_groups.append([field])
+
+        # all other fields are added to the current group
+        else:
+            field_group.append(field)
+
+    # make sure to store last group as well, if it contains anything
+    if len(field_group) > 0:
+        field_groups.append(field_group)
+
+    return field_groups

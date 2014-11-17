@@ -12,13 +12,15 @@
 @#  - spec (msggen.MsgSpec) Parsed specification of the .msg file
 @#  - md5sum (String) MD5Sum of the .msg specification
 @#
-@###############################################
+@####################################################
 -- 
 -- 
 -- 
 @{
 import genmsg.msgs
 import genfrkl
+
+import textwrap
 
 
 # 10
@@ -178,6 +180,9 @@ BEGIN
     -- reset each field to its default value
 @{
 for field in spec.parsed_fields():
+  # improve readability of generated Karel
+  print ""
+
   kl_type = genfrkl.msg_type_to_kl(spec.package, field.type)
 
   # primitives can be zero-ed using a simple statement
@@ -198,7 +203,8 @@ for field in spec.parsed_fields():
 
   # not a primitive: assume complex type has '_rset' routine defined somewhere
   else:
-    print "    -- TODO: this needs properly generated %INCLUDE directives"
+    print ("    -- TODO: calling type-specific routines "
+          "requires properly generated %INCLUDE directives")
 
     pfx = genfrkl.map_complex_type_to_routine_prefix(spec.package, field.type)
 
@@ -219,43 +225,59 @@ END @(kl_rpname)_rset
 
 
 ROUTINE @(kl_rpname)_read
-
 VAR
     stat__       : INTEGER
     i__          : INTEGER
-    array_len__  : INTEGER -- TODO: only add var if necessary
+    array_len__  : INTEGER
 BEGIN
     -- deserialise entire struct, reading from 'fd'
-
-    -- TODO: use minimum amount of READ statements (group primitive
-    --       reads as much as possible)
 @{
-for field in spec.parsed_fields():
-  kl_type = genfrkl.msg_type_to_kl(spec.package, field.type)
+# first pass: group fields into ranges of primitive and non-primitive fields
+field_groups = genfrkl.group_fields(spec)
 
-  # primitives can be deserialised using a simple statement
-  if genfrkl.is_primitive_kl_type(field.type):
+# second pass: emit appropriate READ statements
+for field_group in field_groups:
+  # improve readability of generated Karel
+  print ""
 
-    # can only read arrays one field at a time
-    if field.is_array:
-      print "    array_len__ = ARRAY_LEN(this.%s)" % field.name
-      print "    FOR i__ = 1 TO array_len__ DO"
-      print "        READ fd(this.%s[i__])" % field.name
-      print "        stat__ = IO_STATUS(fd)"
-      print "        IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF"
-      print "    ENDFOR"
+  # we only need to check the type of the first field, as only primitive
+  # fields are grouped together
+  if genfrkl.is_primitive_kl_type(field_group[0].type):
+    # for arrays of primitives we can also generate a compound READ, but we
+    # can only read one index at a time, so we need to supply indices
+    if field_group[0].is_array:
+      array_len = genfrkl.get_array_len(field_group[0].type)
 
-    # 
+      # KAREL indices start at 1
+      array_indices = range(1, array_len + 1)
+      array_fields_strs = ['this.%s[%i]' % (field_group[0].name, i) for i in array_indices]
+      to_read = ", ".join(array_fields_strs)
+
+    # for non-arrays we can just generate a single compound READ statement
+    # for all the fields in the current group
     else:
-      print "    READ fd(this.%s)" % field.name
-      print "    stat__ = IO_STATUS(fd)"
-      print "    IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF"
+      to_read = ", ".join(['this.%s' % field.name for field in field_group])
 
-  # not a primitive: assume complex type has '_read' routine defined somewhere
+    # wrap & indent for readability
+    to_read = "\n            ".join(textwrap.wrap(to_read, 72))
+
+    # emit read statement
+    print "    READ fd(%s)" % to_read
+    print "    stat__ = IO_STATUS(fd)"
+    print "    IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF"
+
+  # non-primitive group:
+  #  - single element in group
+  #  - assume complex type has '_read' routine defined somewhere
   else:
-    print "    -- TODO: this needs properly generated %INCLUDE directives"
+    assert (len(field_group) == 1), "BUG: non-primitive group with > 1 element"
 
+    # readability
+    field = field_group[0]
     pfx = genfrkl.map_complex_type_to_routine_prefix(spec.package, field.type)
+
+    print ("    -- TODO: calling type-specific routines "
+          "requires properly generated %INCLUDE directives")
 
     # can only read arrays one field at a time
     if field.is_array:
@@ -265,11 +287,12 @@ for field in spec.parsed_fields():
       print "        IF (stat__ <> 0) THEN RETURN (-ABS(stat__)); ENDIF"
       print "    ENDFOR"
 
-    # otherwise just call external routine on field
+    # otherwise just call external routine on single field
     else:
       print "    stat__ = %s_read(this.%s, fd)" % (pfx, field.name)
       print "    IF (stat__ <> 0) THEN RETURN (-ABS(stat__)); ENDIF"
 }@
+
     RETURN (-ABS(stat__))
 END @(kl_rpname)_read
 
@@ -289,41 +312,59 @@ ROUTINE @(kl_rpname)_wrte
 VAR
     stat__       : INTEGER
     i__          : INTEGER
-    array_len__  : INTEGER -- TODO: only add var if necessary
+    array_len__  : INTEGER
 BEGIN
     -- serialise entire struct, writing to 'fd'
-
-    -- TODO: use minimum amount of WRITE statements (group primitive
-    --       writes as much as possible)
 @{
-for field in spec.parsed_fields():
-  kl_type = genfrkl.msg_type_to_kl(spec.package, field.type)
+# first pass: group fields into ranges of primitive and non-primitive fields
+field_groups = genfrkl.group_fields(spec)
 
-  # primitives can be serialised using a simple statement
-  if genfrkl.is_primitive_kl_type(field.type):
+# second pass: emit appropriate WRITE statements
+for field_group in field_groups:
+  # improve readability of generated Karel
+  print ""
 
-    # can only write arrays one field at a time
-    if field.is_array:
-      print "    array_len__ = ARRAY_LEN(this.%s)" % field.name
-      print "    FOR i__ = 1 TO array_len__ DO"
-      print "        WRITE fd(this.%s[i__], CR)" % field.name
-      print "        stat__ = IO_STATUS(fd)"
-      print "        IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF"
-      print "    ENDFOR"
+  # we only need to check the type of the first field, as only primitive
+  # fields are grouped together
+  if genfrkl.is_primitive_kl_type(field_group[0].type):
+    # for arrays of primitives we can also generate a compound WRITE, but we
+    # can only read one index at a time, so we need to supply indices
+    if field_group[0].is_array:
+      # print "    -- is primitive group - array"
+      array_len = genfrkl.get_array_len(field_group[0].type)
 
-    # 
+      # KAREL indices start at 1
+      array_indices = range(1, array_len + 1)
+      array_fields_strs = ['this.%s[%i]' % (field_group[0].name, i) for i in array_indices]
+      to_write = ", ".join(array_fields_strs)
+
+    # for non-arrays we can just generate a single compound WRITE statement
+    # for all the fields in the current group
     else:
-      print "    WRITE fd(this.%s, CR)" % field.name
-      print "    stat__ = IO_STATUS(fd)"
-      print "    IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF"
+      to_write = ", ".join(['this.%s' % field.name for field in field_group])
 
-  # not a primitive: assume complex type has '_wrte' routine defined somewhere
+    # wrap & indent for readability
+    to_write = "\n             ".join(textwrap.wrap(to_write, 72))
+
+    # emit read statement
+    print "    WRITE fd(%s, CR)" % to_write
+    print "    stat__ = IO_STATUS(fd)"
+    print "    IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF"
+
+  # non-primitive group:
+  #  - single element in group
+  #  - assume complex type has '_wrte' routine defined somewhere
   else:
-    print "    -- TODO: this needs properly generated %INCLUDE directives"
+    assert (len(field_group) == 1), "BUG: non-primitive group with > 1 element"
 
+    # readability
+    field = field_group[0]
     pfx = genfrkl.map_complex_type_to_routine_prefix(spec.package, field.type)
 
-    # can only write arrays one field at a time
+    print ("    -- TODO: calling type-specific routines "
+          "requires properly generated %INCLUDE directives")
+
+    # can only write arrays of complex types one element at a time
     if field.is_array:
       print "    array_len__ = ARRAY_LEN(this.%s)" % field.name
       print "    FOR i__ = 1 TO array_len__ DO"
@@ -331,11 +372,12 @@ for field in spec.parsed_fields():
       print "        IF (stat__ <> 0) THEN RETURN (-ABS(stat__)); ENDIF"
       print "    ENDFOR"
 
-    # otherwise just call external routine on field
+    # otherwise just call external routine on single field
     else:
       print "    stat__ = %s_wrte(this.%s, fd)" % (pfx, field.name)
       print "    IF (stat__ <> 0) THEN RETURN (-ABS(stat__)); ENDIF"
 }@
+
     RETURN (-ABS(stat__))
 END @(kl_rpname)_wrte
 
