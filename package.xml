@@ -5,7 +5,7 @@
   <description>Fanuc Karel ROS message generators (for use with simple_message).</description>
   <author>G.A. vd. Hoorn (TU Delft Robotics Institute)</author>
   <maintainer email="g.a.vanderhoorn@tudelft.nl">G.A. vd. Hoorn (TU Delft Robotics Institute)</maintainer>
-  <license>BSD</license>
+  <license>Apache2.0</license>
 
   <url type="bugtracker">https://github.com/gavanderhoorn/genfrkl/issues</url>
   <url type="repository">https://github.com/gavanderhoorn/genfrkl</url>
