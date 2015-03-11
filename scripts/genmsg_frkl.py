@@ -9,25 +9,62 @@ Converts ROS .msg files in a package into Karel source code implementations.
 
 import sys
 import os
-import genmsg.template_tools
+
 import genmsg
+import genmsg.command_line
+import genmsg.gentools
+import genmsg.msgs
+import genmsg.msg_loader
+import genmsg.template_tools
 
 
-# default map
+# default maps
 msg_template_map = {
-                    'msg.th.template' : '@NAME@.th.kl',
-                    'msg.h.template' : '@NAME@.h.kl',
-                    'msg.kl.template': '@NAME@.kl',
-                   }
+    'msg.th.template' : '@NAME@.th.kl',
+    'msg.h.template'  : '@NAME@.h.kl',
+    'msg.kl.template' : '@NAME@.kl',
+}
 
-srv_template_map = {}
+srv_template_map = {
+    'srv.th.template' : '@NAME@.th.kl',
+    'srv.h.template'  : '@NAME@.h.kl',
+    'srv.kl.template' : '@NAME@.kl',
+}
+
+
+def _generate_srv_from_file(input_file, output_dir, template_dir, search_path, package_name, srv_template_dict, msg_template_dict):
+    # Read MsgSpec from .srv.file
+    msg_context = genmsg.msg_loader.MsgContext.create_default()
+    full_type_name = genmsg.gentools.compute_full_type_name(package_name, os.path.basename(input_file))
+    spec = genmsg.msg_loader.load_srv_from_file(msg_context, input_file, full_type_name)
+    # Load the dependencies
+    genmsg.msg_loader.load_depends(msg_context, spec, search_path)
+    # Generate the language dependent srv file
+    genmsg.template_tools._generate_from_spec(input_file,
+                        output_dir,
+                        template_dir,
+                        msg_context,
+                        spec,  # contains both .request and .response
+                        srv_template_dict,
+                        search_path)
+
+
+# 'override' just this single method in template_tools
+genmsg.template_tools._generate_srv_from_file = _generate_srv_from_file
 
 
 def get_md5_for_msg(input_file, package_name, include_path):
     # setup
     msg_context = genmsg.msg_loader.MsgContext.create_default()
     full_type_name = genmsg.gentools.compute_full_type_name(package_name, os.path.basename(input_file))
-    spec = genmsg.msg_loader.load_msg_from_file(msg_context, input_file, full_type_name)
+
+    if input_file.endswith(".msg"):
+        spec = genmsg.msg_loader.load_msg_from_file(msg_context, input_file, full_type_name)
+    elif input_file.endswith(".srv"):
+        spec = genmsg.msg_loader.load_srv_from_file(msg_context, input_file, full_type_name)
+    else:
+        assert False, "Uknown file extension for %s"%input_file
+
     search_path = genmsg.command_line.includepath_to_dict(include_path)
     genmsg.msg_loader.load_depends(msg_context, spec, search_path)
 
@@ -43,13 +80,15 @@ def map_md5_to_sm_id(sm_ids_file, md5sum):
 
 
 def gen_msg_template_map(sm_assigned_id):
-    return {
-        #'msg.th.template' : os.path.join('include', 'libsm%04X.th.kl' % sm_assigned_id),
-        #'msg.h.template'  : os.path.join('include', 'libsm%04X.h.kl' % sm_assigned_id),
-        'msg.th.template' : 'libsm%04X.th.kl' % sm_assigned_id,
-        'msg.h.template'  : 'libsm%04X.h.kl' % sm_assigned_id,
-        'msg.kl.template' : 'libsm%04X.kl' % sm_assigned_id,
-    }
+    for k, v in msg_template_map.iteritems():
+        msg_template_map[k] = v.replace('@NAME@', 'libsm%04X' % sm_assigned_id)
+    return msg_template_map
+
+
+def gen_srv_template_map(sm_assigned_id):
+    for k, v in srv_template_map.iteritems():
+        srv_template_map[k] = v.replace('@NAME@', 'libsm%04X' % sm_assigned_id)
+    return srv_template_map
 
 
 if __name__ == "__main__":
@@ -74,20 +113,22 @@ if __name__ == "__main__":
 
     (options, argv) = parser.parse_args(sys.argv)
 
-    if( not options.package or not options.outdir or not options.emdir or not options.assigned_ids_yaml):
+    if(not options.package or not options.outdir or not options.emdir or not options.assigned_ids_yaml):
         parser.print_help()
         exit(-1)
 
 
     if len(argv) > 1:
+        input_file = argv[1]
+
         # use md5 for msg to retrieve SM assigned ID, use that to construct template map
-        md5sum = get_md5_for_msg(argv[1], options.package, options.includepath)
+        md5sum = get_md5_for_msg(input_file, options.package, options.includepath)
         sm_id = map_md5_to_sm_id(options.assigned_ids_yaml, md5sum)
 
         msg_template_dict = gen_msg_template_map(sm_id)
-        srv_template_dict = srv_template_map
+        srv_template_dict = gen_srv_template_map(sm_id)
 
-        genmsg.template_tools.generate_from_file(argv[1], options.package, options.outdir, options.emdir, options.includepath, msg_template_dict, srv_template_dict)
+        genmsg.template_tools.generate_from_file(input_file, options.package, options.outdir, options.emdir, options.includepath, msg_template_dict, srv_template_dict)
 
     else:
         parser.print_help()

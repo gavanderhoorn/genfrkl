@@ -15,7 +15,10 @@
  - add support for variable length arrays
  - remove code duplication in '_wrte' and '_read' routine templates.
  - do something with STRING\[n\] (KAREL) and char\[\] (ROS) arrays?
- - add support for services
+ - use yaml id db for generation of header include statements
+ - load yaml id db using pkg resource api:
+   - load one yaml id db for each msg pkg on include path?
+ - do something about mess in service templates
 
 
 # In progress
@@ -28,6 +31,13 @@
  - provide ros msg -> simple msg assigned id as yaml file on command line
    - allow multiple mapping files to be provided: this way the 'freely assignable'
      range can be exploited: users can provide their own mapping file
+ - add support for services:
+   - add service bits to genmsg_frkl.py
+   - create srv template files
+   - make genfrkl output only a single KL file for services (use asymmetric
+     READ / WRITE)
+   - avoid duplication in generator code
+ - check for illegal declarations (ie: arrays with 0 length)?
 
 
 # Done

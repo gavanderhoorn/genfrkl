@@ -1,16 +1,16 @@
 @####################################################
 @#
-@# ROS message source code generation for Fanuc Karel
+@# ROS service source code generation for Fanuc Karel
 @#
-@# EmPy template for generating <msg>.kl files
+@# EmPy template for generating <srv>.kl files
 @#
 @####################################################
 @# Start of Template
 @#
 @# Context:
 @#  - file_name_in (String) Source file
-@#  - spec (msggen.MsgSpec) Parsed specification of the .msg file
-@#  - md5sum (String) MD5Sum of the .msg specification
+@#  - spec (msggen.MsgSpec) Parsed specification of the .srv file
+@#  - md5sum (String) MD5Sum of the .srv specification
 @#
 @####################################################
 -- Copyright 2015 TU Delft Robotics Institute
@@ -75,12 +75,11 @@ PROGRAM @(kl_libname)
 --------------------------------------------------------------------------------
 %INCLUDE include\ktype_sz.th
 @{
-# TODO: use md5 of field type to map to SM assigned ID, then generate
-#       include statements based on those
-
 # avoid generating duplicate include statements
+all_fields = spec.request.parsed_fields() + spec.response.parsed_fields()
+
 # we only care about field types here
-for field in genfrkl.utils.uniqify(spec.parsed_fields(), lambda x: x.type):
+for field in genfrkl.utils.uniqify(all_fields, lambda x: x.type):
   if not genfrkl.is_primitive_kl_type(field.type):
     base_name = genfrkl.map_complex_type_to_routine_prefix(spec.package, field.type)
     print "%%INCLUDE include\lib%s.th" % base_name
@@ -100,7 +99,10 @@ CONST
     -- internal use only
     @(kl_smname.upper())_PID_  = @(kl_smname.upper())_ID
     @(kl_smname.upper())_STR_  = '@(spec.short_name)'
-    @(kl_smname.upper())_LEN_  = @('%d' % genfrkl.calculate_msg_length(spec))
+    @(kl_smname.upper())Q_STR_ = '@(spec.short_name)_Request'
+    @(kl_smname.upper())Q_LEN_ = @('%d' % genfrkl.calculate_msg_length(spec.request))
+    @(kl_smname.upper())R_STR_ = '@(spec.short_name)_Response'
+    @(kl_smname.upper())R_LEN_ = @('%d' % genfrkl.calculate_msg_length(spec.response))
 
 
 
@@ -111,12 +113,10 @@ CONST
 -- 
 --------------------------------------------------------------------------------
 @{
-# TODO: use md5 of field type to map to SM assigned ID, then generate
-#       include statements based on those
-
 # avoid generating duplicate include statements
+all_fields = spec.request.parsed_fields() + spec.response.parsed_fields()
 # we only care about field types here
-for field in genfrkl.utils.uniqify(spec.parsed_fields(), lambda x: x.type):
+for field in genfrkl.utils.uniqify(all_fields, lambda x: x.type):
   if not genfrkl.is_primitive_kl_type(field.type):
     base_name = genfrkl.map_complex_type_to_routine_prefix(spec.package, field.type)
     print "%%INCLUDE include\lib%s.h" % base_name
@@ -146,14 +146,6 @@ END @(kl_libname)
 
 
 
-ROUTINE @(kl_smname)_len
-BEGIN
-    RETURN (@(kl_smname.upper())_LEN_)
-END @(kl_smname)_len
-
-
-
-
 ROUTINE @(kl_smname)_name
 BEGIN
     RETURN (@(kl_smname.upper())_STR_)
@@ -170,16 +162,34 @@ END @(kl_smname)_pid
 
 
 
-ROUTINE @(kl_smname)_ctor
+--- response routines ----------------------------------------------------------
+
+ROUTINE @(kl_smname)q_len
 BEGIN
-    @(kl_smname)_rset(this)
-END @(kl_smname)_ctor
+    RETURN (@(kl_smname.upper())Q_LEN_)
+END @(kl_smname)q_len
 
 
 
 
-ROUTINE @(kl_smname)_rset
-@[if genfrkl.has_arrays(spec)]@
+ROUTINE @(kl_smname)q_name
+BEGIN
+    RETURN (@(kl_smname.upper())Q_STR_)
+END @(kl_smname)q_name
+
+
+
+
+ROUTINE @(kl_smname)q_ctor
+BEGIN
+    @(kl_smname)q_rset(this)
+END @(kl_smname)q_ctor
+
+
+
+
+ROUTINE @(kl_smname)q_rset
+@[if genfrkl.has_arrays(spec.request)]@
 VAR
     i__          : INTEGER
     array_len__  : INTEGER
@@ -187,12 +197,12 @@ VAR
 BEGIN
     -- reset each field to its default value
 @{
-for field in spec.parsed_fields():
-  kl_type = genfrkl.msg_type_to_kl(spec.package, field.type)
+for field in spec.request.parsed_fields():
+  kl_type = genfrkl.msg_type_to_kl(spec.request.package, field.type)
 
   # primitives can be zero-ed using a simple statement
   if genfrkl.is_primitive_kl_type(field.type):
-    kl_zero = genfrkl.msg_type_to_zero_value(spec.package, field.type)
+    kl_zero = genfrkl.msg_type_to_zero_value(spec.request.package, field.type)
 
     # can only reset arrays one field at a time
     if field.is_array:
@@ -203,7 +213,7 @@ for field in spec.parsed_fields():
 
     # otherwise primitive types can just be set to their 'zero value'
     else:
-      kl_zero = genfrkl.msg_type_to_zero_value(spec.package, field.type)
+      kl_zero = genfrkl.msg_type_to_zero_value(spec.request.package, field.type)
       print "    this.%s = %s" % (field.name, kl_zero)
 
   # not a primitive: assume complex type has '_rset' routine defined somewhere
@@ -211,7 +221,7 @@ for field in spec.parsed_fields():
     print ("    -- TODO: calling type-specific routines "
           "requires properly generated %INCLUDE directives")
 
-    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.package, field.type)
+    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.request.package, field.type)
 
     # can only reset arrays one field at a time
     if field.is_array:
@@ -225,14 +235,14 @@ for field in spec.parsed_fields():
       print "    %s_rset(this.%s)" % (pfx, field.name)
 }@
 @{
-if genfrkl.msg_has_sm_header(spec):
+if genfrkl.msg_has_sm_header(spec.request):
   print ""
   print "    -- finally, init header values"
   print "    this.hdr.msg_type = %d" % mapped_msg_type
-  print "    this.hdr.comm_type = SM_CT_TOPIC"
+  print "    this.hdr.comm_type = SM_CT_SVCREQ"
   print "    this.hdr.reply_code = SM_RC_SUCC"
 }@
-END @(kl_smname)_rset
+END @(kl_smname)q_rset
 
 
 
@@ -240,16 +250,16 @@ END @(kl_smname)_rset
 ROUTINE @(kl_smname)_read
 VAR
     stat__       : INTEGER
-@[if genfrkl.has_arrays(spec)]@
+@[if genfrkl.has_arrays(spec.request)]@
     i__          : INTEGER
     array_len__  : INTEGER
 @[end if]@
 BEGIN
-    -- deserialise entire struct, reading from 'fd'
+    -- deserialise entire request struct, reading from 'fd'
     stat__ = 0
 @{
 # first pass: group fields into ranges of primitive and non-primitive fields
-field_groups = genfrkl.group_fields(spec)
+field_groups = genfrkl.group_fields(spec.request)
 
 # second pass: emit appropriate READ statements
 for field_group in field_groups:
@@ -289,7 +299,7 @@ for field_group in field_groups:
     assert (len(field_group) == 1), "BUG: non-primitive group with > 1 element"
 
     # 
-    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.package, field_group[0].type)
+    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.request.package, field_group[0].type)
 
     print ("    -- TODO: calling type-specific routines "
           "requires properly generated %INCLUDE directives")
@@ -323,7 +333,7 @@ BEGIN
     IF (stat__ <> 0) THEN RETURN (-ABS(stat__)); ENDIF
 
     -- swap fields in place
-    @(kl_smname)_swap(this)
+    @(kl_smname)q_swap(this)
 
     RETURN (-ABS(stat__))
 END @(kl_smname)_sread
@@ -331,19 +341,194 @@ END @(kl_smname)_sread
 
 
 
-ROUTINE @(kl_smname)_wrte
+ROUTINE @(kl_smname)q_tstr
+BEGIN
+    RETURN (@(kl_smname)q_name)
+END @(kl_smname)q_tstr
+
+ROUTINE @(kl_smname)r_tstr
+BEGIN
+    RETURN (@(kl_smname)r_name)
+END @(kl_smname)r_tstr
+
+
+
+
+ROUTINE @(kl_smname)q_dump
 VAR
     stat__       : INTEGER
-@[if genfrkl.has_arrays(spec)]@
+BEGIN
+    WRITE fd(@(kl_smname)q_tstr(this), CR)
+    stat__ = IO_STATUS(fd)
+    RETURN (-ABS(stat__))
+END @(kl_smname)q_dump
+
+
+
+
+ROUTINE @(kl_smname)q_swap
+@[if genfrkl.has_arrays(spec.request)]@
+VAR
     i__          : INTEGER
     array_len__  : INTEGER
 @[end if]@
 BEGIN
-    -- serialise entire struct, writing to 'fd'
+@{
+for field in spec.request.parsed_fields():
+  # primitives can be swapped-ed using a simple statement
+  if genfrkl.is_primitive_kl_type(field.type):
+    # only multibyte primitive types need to be swapped
+    if not genfrkl.needs_swap(spec.request.package, field.type):
+      kl_type = genfrkl.msg_type_to_kl(spec.request.package, field.type)
+      print "    -- swap is no-op for field '%s' (type: %s)" % (field.name, kl_type)
+      continue
+
+    # can only reset arrays one field at a time
+    if field.is_array:
+      print "    array_len__ = ARRAY_LEN(this.%s)" % field.name
+      print "    FOR (i__ = 1 TO array_len__) DO"
+
+      kl_type = genfrkl.msg_type_to_kl(spec.request.package, field.type)
+      # TODO: this is not really nice, do something about it
+      if kl_type == 'SHORT':
+        # SHORTs cannot be swapped in place
+        print "        %s((this.%s[i__]), temp__); this.%s[i__] = temp__" % (genfrkl.get_swap_func(spec.request.package, field.type), field.name, field.name)
+      else:
+        print "        %s(this.%s[i__], this.%s[i__])" % (genfrkl.get_swap_func(spec.request.package, field.type), field.name, field.name)
+      print "    ENDFOR"
+
+    # otherwise primitive types can just be swapped in-place
+    else:
+      kl_type = genfrkl.msg_type_to_kl(spec.request.package, field.type)
+      # TODO: this is not really nice, do something about it
+      if kl_type == 'SHORT':
+        # SHORTs cannot be swapped in place
+        print "    %s((this.%s), temp__); this.%s = temp__" % (genfrkl.get_swap_func(spec.request.package, field.type), field.name, field.name)
+      else:
+        print "    %s(this.%s, this.%s)" % (genfrkl.get_swap_func(spec.request.package, field.type), field.name, field.name)
+
+  # not a primitive: assume complex type has '_swap' routine defined somewhere
+  else:
+    print ("    -- TODO: calling type-specific routines "
+          "requires properly generated %INCLUDE directives")
+
+    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.request.package, field.type)
+
+    # can only swap arrays one field at a time
+    if field.is_array:
+      print "    array_len__ = ARRAY_LEN(this.%s)" % field.name
+      print "    FOR (i__ = 1 TO array_len__) DO"
+      print "        %s_swap(this.%s[i__])" % (pfx, field.name)
+      print "    ENDFOR"
+
+    # otherwise just call external routine on field
+    else:
+      print "    %s_swap(this.%s)" % (pfx, field.name)
+}@
+END @(kl_smname)q_swap
+
+
+
+
+--- response routines ----------------------------------------------------------
+
+
+ROUTINE @(kl_smname)r_len
+BEGIN
+    RETURN (@(kl_smname.upper())R_LEN_)
+END @(kl_smname)r_len
+
+
+
+
+ROUTINE @(kl_smname)r_name
+BEGIN
+    RETURN (@(kl_smname.upper())R_STR_)
+END @(kl_smname)r_name
+
+
+
+
+ROUTINE @(kl_smname)r_ctor
+BEGIN
+    @(kl_smname)r_rset(this)
+END @(kl_smname)r_ctor
+
+
+
+
+ROUTINE @(kl_smname)r_rset
+@[if genfrkl.has_arrays(spec.response)]@
+VAR
+    i__          : INTEGER
+    array_len__  : INTEGER
+@[end if]@
+BEGIN
+    -- reset each field to its default value
+@{
+for field in spec.response.parsed_fields():
+  kl_type = genfrkl.msg_type_to_kl(spec.response.package, field.type)
+
+  # primitives can be zero-ed using a simple statement
+  if genfrkl.is_primitive_kl_type(field.type):
+    kl_zero = genfrkl.msg_type_to_zero_value(spec.response.package, field.type)
+
+    # can only reset arrays one field at a time
+    if field.is_array:
+      print "    array_len__ = ARRAY_LEN(this.%s)" % field.name
+      print "    FOR (i__ = 1 TO array_len__) DO"
+      print "        this.%s[i__] = %s" % (field.name, kl_zero)
+      print "    ENDFOR"
+
+    # otherwise primitive types can just be set to their 'zero value'
+    else:
+      kl_zero = genfrkl.msg_type_to_zero_value(spec.response.package, field.type)
+      print "    this.%s = %s" % (field.name, kl_zero)
+
+  # not a primitive: assume complex type has '_rset' routine defined somewhere
+  else:
+    print ("    -- TODO: calling type-specific routines "
+          "requires properly generated %INCLUDE directives")
+
+    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.response.package, field.type)
+
+    # can only reset arrays one field at a time
+    if field.is_array:
+      print "    array_len__ = ARRAY_LEN(this.%s)" % field.name
+      print "    FOR (i__ = 1 TO array_len__) DO"
+      print "        %s_rset(this.%s[i__])" % (pfx, field.name)
+      print "    ENDFOR"
+
+    # otherwise just call external routine on field
+    else:
+      print "    %s_rset(this.%s)" % (pfx, field.name)
+}@
+@{
+if genfrkl.msg_has_sm_header(spec.response):
+  print ""
+  print "    -- finally, init header values"
+  print "    this.hdr.msg_type = %d" % mapped_msg_type
+  print "    this.hdr.comm_type = SM_CT_SVCRPL"
+  print "    this.hdr.reply_code = SM_RC_SUCC"
+}@
+END @(kl_smname)r_rset
+
+
+
+
+ROUTINE @(kl_smname)_wrte
+VAR
+    stat__       : INTEGER
+@[if genfrkl.has_arrays(spec.response)]@
+    i__          : INTEGER
+    array_len__  : INTEGER
+@[end if]@
+BEGIN
+    -- serialise entire response struct, writing to 'fd'
     stat__ = 0
 @{
 # first pass: group fields into ranges of primitive and non-primitive fields
-field_groups = genfrkl.group_fields(spec)
+field_groups = genfrkl.group_fields(spec.response)
 
 # second pass: emit appropriate WRITE statements
 for field_group in field_groups:
@@ -384,7 +569,7 @@ for field_group in field_groups:
     assert (len(field_group) == 1), "BUG: non-primitive group with > 1 element"
 
     # 
-    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.package, field_group[0].type)
+    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.response.package, field_group[0].type)
 
     print ("    -- TODO: calling type-specific routines "
           "requires properly generated %INCLUDE directives")
@@ -414,7 +599,7 @@ VAR
     stat__       : INTEGER
 BEGIN
     -- swap fields in place first
-    @(kl_smname)_swap(this)
+    @(kl_smname)r_swap(this)
 
     -- now write to 'fd'
     stat__ = @(kl_smname)_wrte(this, fd)
@@ -424,40 +609,32 @@ END @(kl_smname)_swrte
 
 
 
-ROUTINE @(kl_smname)_tstr
-BEGIN
-    RETURN (@(kl_smname)_name)
-END @(kl_smname)_tstr
-
-
-
-
-ROUTINE @(kl_smname)_dump
+ROUTINE @(kl_smname)r_dump
 VAR
     stat__       : INTEGER
 BEGIN
-    WRITE fd(@(kl_smname)_tstr(this), CR)
+    WRITE fd(@(kl_smname)r_tstr(this), CR)
     stat__ = IO_STATUS(fd)
     RETURN (-ABS(stat__))
-END @(kl_smname)_dump
+END @(kl_smname)r_dump
 
 
 
 
-ROUTINE @(kl_smname)_swap
-@[if genfrkl.has_arrays(spec)]@
+ROUTINE @(kl_smname)r_swap
+@[if genfrkl.has_arrays(spec.response)]@
 VAR
     i__          : INTEGER
     array_len__  : INTEGER
 @[end if]@
 BEGIN
 @{
-for field in spec.parsed_fields():
+for field in spec.response.parsed_fields():
   # primitives can be swapped-ed using a simple statement
   if genfrkl.is_primitive_kl_type(field.type):
     # only multibyte primitive types need to be swapped
-    if not genfrkl.needs_swap(spec.package, field.type):
-      kl_type = genfrkl.msg_type_to_kl(spec.package, field.type)
+    if not genfrkl.needs_swap(spec.response.package, field.type):
+      kl_type = genfrkl.msg_type_to_kl(spec.response.package, field.type)
       print "    -- swap is no-op for field '%s' (type: %s)" % (field.name, kl_type)
       continue
 
@@ -466,31 +643,31 @@ for field in spec.parsed_fields():
       print "    array_len__ = ARRAY_LEN(this.%s)" % field.name
       print "    FOR (i__ = 1 TO array_len__) DO"
 
-      kl_type = genfrkl.msg_type_to_kl(spec.package, field.type)
+      kl_type = genfrkl.msg_type_to_kl(spec.response.package, field.type)
       # TODO: this is not really nice, do something about it
       if kl_type == 'SHORT':
         # SHORTs cannot be swapped in place
-        print "        %s((this.%s[i__]), temp__); this.%s[i__] = temp__" % (genfrkl.get_swap_func(spec.package, field.type), field.name, field.name)
+        print "        %s((this.%s[i__]), temp__); this.%s[i__] = temp__" % (genfrkl.get_swap_func(spec.response.package, field.type), field.name, field.name)
       else:
-        print "        %s(this.%s[i__], this.%s[i__])" % (genfrkl.get_swap_func(spec.package, field.type), field.name, field.name)
+        print "        %s(this.%s[i__], this.%s[i__])" % (genfrkl.get_swap_func(spec.response.package, field.type), field.name, field.name)
       print "    ENDFOR"
 
     # otherwise primitive types can just be swapped in-place
     else:
-      kl_type = genfrkl.msg_type_to_kl(spec.package, field.type)
+      kl_type = genfrkl.msg_type_to_kl(spec.response.package, field.type)
       # TODO: this is not really nice, do something about it
       if kl_type == 'SHORT':
         # SHORTs cannot be swapped in place
-        print "    %s((this.%s), temp__); this.%s = temp__" % (genfrkl.get_swap_func(spec.package, field.type), field.name, field.name)
+        print "    %s((this.%s), temp__); this.%s = temp__" % (genfrkl.get_swap_func(spec.response.package, field.type), field.name, field.name)
       else:
-        print "    %s(this.%s, this.%s)" % (genfrkl.get_swap_func(spec.package, field.type), field.name, field.name)
+        print "    %s(this.%s, this.%s)" % (genfrkl.get_swap_func(spec.response.package, field.type), field.name, field.name)
 
   # not a primitive: assume complex type has '_swap' routine defined somewhere
   else:
     print ("    -- TODO: calling type-specific routines "
           "requires properly generated %INCLUDE directives")
 
-    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.package, field.type)
+    pfx = genfrkl.map_complex_type_to_routine_prefix(spec.response.package, field.type)
 
     # can only swap arrays one field at a time
     if field.is_array:
@@ -503,7 +680,7 @@ for field in spec.parsed_fields():
     else:
       print "    %s_swap(this.%s)" % (pfx, field.name)
 }@
-END @(kl_smname)_swap
+END @(kl_smname)r_swap
 
 
 

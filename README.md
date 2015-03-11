@@ -7,7 +7,7 @@ with [simple_message][].
 
 Current state:
 
- - basic generation of Karel for ROS msgs working
+ - basic generation of Karel for ROS msgs and srvs working
  - no support for dynamic arrays (lists)
  - no support for identifiers with length > 12
  - no (proper) support for string fields
@@ -24,6 +24,10 @@ Current state:
  - Stand-alone: invoke like:
    ```
    scripts/genmsg_frkl.py -p PKG -IMSG_INCLUDE_PATHS -o OUTPUT_PATH -e scripts /path/to/PKG/your.msg
+   ```
+   or:
+   ```
+   scripts/genmsg_frkl.py -p PKG -IMSG_INCLUDE_PATHS -o OUTPUT_PATH -e scripts /path/to/PKG/your.srv
    ```
 
    This should result in several `.kl` files being generated in `OUTPUT_PATH`.

@@ -43,6 +43,11 @@ MSG_TYPE_TO_KL_ZERO_VALUE = {
 }
 
 
+
+
+
+
+
 # from 'KAREL Reference Manual Rev. C', table 2-6: Reserved Word List
 KL_RESERVED_WORDS = [
     'ABORT', 'ABOUT', 'ABS', 'AFTER', 'ALONG', 'ALSO', 'AND', 'ARRAY',
@@ -125,11 +130,12 @@ def msg_type_to_kl(package_context, _type):
         pkg = base_type.split('/')[0]
         msg = base_type.split('/')[1]
         if package_context == pkg:
-            kl_type = msg
+            kl_type = 'sm%s' % msg.upper()
         else:
             # TODO: hack: type is always type of message, karel does not
             #       support namespacing
-            kl_type = msg
+            # TODO: this should do the same trick as map_complex_type_to_routine_prefix()
+            kl_type = 'sm%s' % msg.upper()
 
     if is_array:
         if array_len is None:
@@ -210,6 +216,10 @@ def get_type_len(fields):
             if SM_HEADER_NAME in base_type:
                 sub_total += (3 * 4)
             else:
+                # TODO: implement loading other msg types
+                # perhaps use spec.depends? and load_msg_depends(), load_msg_by_type()?
+                # same trick as map_complex_type_to_routine_prefix()
+                #return 4
                 raise NotImplementedException("%s" % base_type)
         else:
             kl_type = MSG_TYPE_TO_KL_TYPE[base_type]
@@ -250,12 +260,17 @@ def map_complex_type_to_routine_prefix(package_context, _type):
 
     assert (not genmsg.msgs.is_builtin(base_type)), "'%s' is a built-in, cannot map" % base_type
 
-    #print "-- map_complex_type_to_routine_prefix: got '%s' ('%s')" % (_type, base_type)
-
     if SM_HEADER_NAME in _type:
         return SM_HEADER_LIBNAME
 
-    return 'some_prefix_todo'
+    # idea:
+    #  - load msg for _type
+    #  - calculate md5sum for msg
+    #  - use md5 to retrieve assigned id
+    #  - prefix 'sm' and return
+    #sm_id_data = load_id_mapper_file('sm_assigned_ids.yaml')
+
+    return 'smXXXX'
 
 
 def has_arrays(spec):

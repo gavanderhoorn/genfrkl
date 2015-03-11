@@ -35,7 +35,14 @@ if __name__ == "__main__":
         # setup context and msg spec
         msg_context = genmsg.msg_loader.MsgContext.create_default()
         full_type_name = genmsg.gentools.compute_full_type_name(package_name, os.path.basename(input_file))
-        spec = genmsg.msg_loader.load_msg_from_file(msg_context, input_file, full_type_name)
+
+        if input_file.endswith(".msg"):
+            spec = genmsg.msg_loader.load_msg_from_file(msg_context, input_file, full_type_name)
+        elif input_file.endswith(".srv"):
+            spec = genmsg.msg_loader.load_srv_from_file(msg_context, input_file, full_type_name)
+        else:
+            assert False, "Uknown file extension for %s"%input_file
+
         search_path = genmsg.command_line.includepath_to_dict(include_path)
         genmsg.msg_loader.load_depends(msg_context, spec, search_path)
 

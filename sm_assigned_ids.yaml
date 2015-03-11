@@ -4,8 +4,13 @@
 
 data:
   # PING
-  4fc36bf2c899fc12f36c110d7cb3f5f1 :    1
+  #4fc36bf2c899fc12f36c110d7cb3f5f1 :    1
 
+  # PING, service version
+  57ca187f352b89c4f4c038657a534518 :    1
+
+  # GET_VERSION
+  c653d4eb4430ce530d39e84a5b3cfa9e :    2
   # JOINT_POSITION
   0000000000000000000000000000000A :   10
   # JOINT_TRAJ_PT
@@ -18,3 +23,10 @@ data:
   0000000000000000000000000000000E :   14
   # JOINT_FEEDBACK
   0000000000000000000000000000000F :   15
+
+
+
+
+
+  # constant.srv : test with constants
+  71957a86248c563314ee8df4e0643b01 :  65103
