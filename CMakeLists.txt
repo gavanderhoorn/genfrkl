@@ -14,3 +14,7 @@ install(FILES ${CATKIN_DEVEL_PREFIX}/${GENMSG_LANGS_DESTINATION}/genfrkl
   DESTINATION ${GENMSG_LANGS_DESTINATION})
 
 catkin_python_setup()
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_nosetests(test)
+endif()

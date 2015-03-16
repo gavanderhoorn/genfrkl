@@ -18,7 +18,7 @@
 
   <export>
     <message_generator>frkl</message_generator>
-    <rosdoc config="rosdoc.yaml"/>
-    <architecture_independent/>
+    <rosdoc config="rosdoc.yaml" />
+    <architecture_independent />
   </export>
 </package>

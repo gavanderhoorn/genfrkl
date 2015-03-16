@@ -4,21 +4,34 @@
    constants')
  - work around identifier name length limit (can't go and change all
    existing msg defs)
- - make `x_len()` work for dynamically sized messages:
-   - return `> 0` for statically defined messages (no dynamic arrays fi)
-   - return `-1` for dynamically sized messages (then have `x_read()` return
-     the nr of additional bytes it needs if it can't completely deserialise
-     a message from the current buffer)
- - make `x_read()` capable of reading messages in multiple passes (see comment
-   about `x_len()`. Use a (small) internal state machine to keep track of what
-   has been deserialised already)
  - add support for variable length arrays
+   - make `x_len()` work for dynamically sized messages:
+     - return `> 0` for statically defined messages (no dynamic arrays fi)
+     - return `-1` for dynamically sized messages (then have `x_read()` return
+       the nr of additional bytes it needs if it can't completely deserialise
+       a message from the current buffer)
+   - make `x_read()` capable of reading messages in multiple passes (see comment
+     about `x_len()`. Use a (small) internal state machine to keep track of what
+     has been deserialised already)
  - remove code duplication in '_wrte' and '_read' routine templates.
  - do something with STRING\[n\] (KAREL) and char\[\] (ROS) arrays?
- - use yaml id db for generation of header include statements
- - load yaml id db using pkg resource api:
-   - load one yaml id db for each msg pkg on include path?
  - do something about mess in service templates
+ - use more Karel native types: VECTOR, POSITION, XYZWPR, XYZWPREXT and
+   JOINTPOS and (de)serialise them
+ - add support for unsigned int types (map onto next available signed type?)
+ - make sure BOOLEAN doesn't need to be swapped (using INTEGER function?)
+ - add abbreviation database and use it to automatically shorten msg
+   field names when necessary (motion -> [mtion, mtn]; possible -> [pssble, psbl])
+ - prefix/suffix msg field names with underscores (or similar, if possible) in case
+   they would map onto reserved words in Karel ('time' fi)
+ - add detection for case where user tries to embed a message type that has a
+   variable length array as a field (or depend on fact that code cannot be
+   generated for such msgs, so Karel invocations would fail anyway?). The
+   Float64MultiArray is an example.
+ - perhaps add support for in-lining (de)serialisation code, instead of calling
+   smXXXX_read(..)/smXXXX_wrte(..) routines (less overhead)
+ - extend checking for illegal identifiers to msg.kl as well. Perhaps add
+   a 'fixed_name' or something?
 
 
 # In progress
@@ -52,6 +65,9 @@
  - filter reserved words (ON / OFF, OPEN, etc)
  - create stand-alone tool to calculate MD5 of ROS msg / srv files
  - add Simple Message assigned message type to `msg_type` mapping function
+ - use yaml id db for generation of header include statements
+ - load yaml id db using pkg resource api:
+   - load one yaml id db for each msg pkg on include path?
 
 
 # Wontfix

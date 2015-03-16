@@ -1,293 +1,122 @@
-#!/usr/bin/env python
-""""""
+# Copyright 2015 TU Delft Robotics Institute
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Author: G.A. vd. Hoorn - TU Delft Robotics Institute
+#
+
 import genmsg.msgs
+from . import karel
+from . import msg_mapping
 
 
-MSG_TYPE_TO_KL_TYPE = {
-    'byte'   : 'BYTE',
-    'char'   : 'BYTE',
-    'bool'   : 'BOOLEAN',
-    'uint8'  : 'BYTE',
-    'int8'   : 'BYTE',
-    'uint16' : 'SHORT',
-    'int16'  : 'SHORT',
-    'uint32' : 'INTEGER',
-    'int32'  : 'INTEGER',
+
+ROS_TO_KAREL_TYPE_MAP = {
+    'byte'    : 'BYTE',
+    'char'    : 'BYTE',
+    'bool'    : 'BOOLEAN',
+    'uint8'   : 'BYTE',
+    'int8'    : 'BYTE',
+    'uint16'  : 'SHORT',
+    'int16'   : 'SHORT',
+    'uint32'  : 'INTEGER',
+    'int32'   : 'INTEGER',
     #'uint64' : 'uint64',
     #'int64'  : 'int64',
-    'float32': 'REAL',
-    'float64': 'REAL',
-    'string' : 'STRING',
-    #'time': 'ros.Time',            # ros_tim_t? Karel struct?
-    #'duration': 'ros.Duration'     # ros_dur_t? Karel struct?
+    'float32' : 'REAL',
+    'float64' : 'REAL',
+    #'string'  : 'STRING',
+    #'time'    : 'ros_time_t',
+    #'duration': 'ros_dur_t',
 }
 
 
-MSG_TYPE_TO_KL_ZERO_VALUE = {
-    'bool'   : 'FALSE',
-    'byte'   : '0',
-    'char'   : '0',
-    'uint8'  : '0',
-    'int8'   : '0',
-    'uint16' : '0',
-    'int16'  : '0',
-    'uint32' : '0',
-    'int32'  : '0',
-    #'uint64' : '0',
-    #'int64'  : '0',
-    'float32': '0.0',
-    'float64': '0.0',
-    'string' : '\'\'',
-    #'time': 'ros.Time{}',
-    #'duration': 'ros.Duration{}'
-}
-
-
-
-
-
-
-
-# from 'KAREL Reference Manual Rev. C', table 2-6: Reserved Word List
-KL_RESERVED_WORDS = [
-    'ABORT', 'ABOUT', 'ABS', 'AFTER', 'ALONG', 'ALSO', 'AND', 'ARRAY',
-    'ARRAY_LEN', 'AT', 'ATTACH', 'AWAY', 'AXIS', 'BEFORE', 'BEGIN', 'BOOLEAN',
-    'BY', 'BYNAME', 'BYTE', 'CAM_SETUP', 'CANCEL', 'CASE', 'CLOSE', 'CMOS',
-    'COMMAND', 'COMMON_ASSOC', 'CONDITION', 'CONFIG', 'CONNECT', 'CONST',
-    'CONTINUE', 'COORDINATED', 'CR', 'DELAY', 'DISABLE', 'DISCONNECT', 'DIV',
-    'DO', 'DOWNTO', 'DRAM', 'ELSE', 'ENABLE', 'END', 'END', 'ENDCONDITION',
-    'ENDFOR', 'ENDIF', 'ENDMOVE', 'ENDSELECT', 'ENDSTRUCTURE', 'ENDUSING',
-    'ENDWHILE', 'ERROR', 'EVAL', 'EVENT', 'FILE', 'FOR', 'FROM', 'GET_VAR',
-    'GO', 'GOTO', 'GROUP', 'GROUP_ASSOC', 'HAND', 'HOLD', 'IF', 'IN',
-    'INDEPENDENT', 'INTEGER', 'JOINTPOS', 'JOINTPOS1', 'JOINTPOS2',
-    'JOINTPOS3', 'JOINTPOS4', 'JOINTPOS5', 'JOINTPOS6', 'JOINTPOS7',
-    'JOINTPOS8', 'JOINTPOS9', 'MOD', 'MODEL', 'MOVE', 'NEAR', 'NOABORT',
-    'NODE', 'NODEDATA', 'NOMESSAGE', 'NOPAUSE', 'NOT', 'NOWAIT', 'OF', 'OPEN',
-    'OR', 'PATH', 'PATHHEADER', 'PAUSE', 'POSITION', 'POWERUP', 'PROGRAM',
-    'PULSE', 'PURGE', 'READ', 'REAL', 'RELATIVE', 'RELAX', 'RELEASE',
-    'REPEAT', 'RESTORE', 'RESUME', 'RETURN', 'ROUTINE', 'SELECT', 'SEMAPHORE',
-    'SET_VAR', 'SHORT', 'SIGNAL', 'STOP', 'STRING', 'STRUCTURE', 'THEN',
-    'TIME', 'TIMER', 'TO', 'TPENABLE', 'TYPE', 'UNHOLD', 'UNINIT', 'UNPAUSE',
-    'UNTIL', 'USING', 'VAR', 'VECTOR', 'VIA', 'VIS_PROCESS', 'WAIT', 'WHEN',
-    'WHILE', 'WITH', 'WRITE', 'XYZWPR', 'XYZWPREXT']
-
-
-# from 'KAREL Reference Manual Rev. C'
-KL_PREDEFINED_IDENTS = [
-    # table 2-7: Predefined Identifier and Value Summary
-    'TRUE', 'FALSE', 'ON', 'OFF', 'MAXINT', 'MININT',
-    # cont'd
-    'RSWORLD', 'AESWORLD', 'WRISTJOINT', 'JOINT', 'LINEAR', 'STRAIGHT',
-    'CIRCULAR', 'FINE', 'COARSE', 'NOSETTLE', 'NODECEL', 'VARDECEL',
-    # table 2-8: Port and File Predefined Identifier Summary
-    'DIN', 'DOUT', 'GIN', 'GOUT', 'AIN', 'AOUT', 'TPIN', 'TPOUT', 'RDI',
-    'RDO', 'OPIN', 'OPOUT', 'WDI', 'WDOUT', 'UIN', 'UOUT', 'LDI', 'LDO',
-    'FLG', 'MRK',
-    # cont'd
-    'LAI', 'LAO', 'TPDISPLAY', 'TPERROR', 'TPPROMPT', 'TPFUNC', 'TPSTATUS',
-    'INPUT', 'OUTPUT', 'CRTERROR', 'CRTFUNC', 'CRTSTATUS', 'CRTPROMPT',
-    'VIS_MONITOR'
-]
-
-
-KL_TYPE_SZ = {
-    'BYTE'    : 1,
-    'SHORT'   : 2,
-    'INTEGER' : 4,
-    'REAL'    : 4,
-    'BOOLEAN' : 4,
-}
-
-
-# TODO: make 'sm_hdr' map to 'sm_hdr_t' as a Karel type. Perhaps treat it like a built-in?
-#  or rework msg to krl type mapping entirely
-
-SM_HEADER_LIBNAME = 'sm_hdr'
-SM_HEADER_NAME = 'sm_hdr_t'
-SM_HEADER_TYPE = 'sm_hdr_t'
+SM_HEADER='sm_hdr'
+SM_HEADER_FULLNAME='simple_msgs/sm_hdr'
 
 
 class NotImplementedException(Exception):
     pass
 
 
-
-def msg_type_to_kl(package_context, _type):
-    (base_type, is_array, array_len) = genmsg.msgs.parse_type(_type)
-
-    # 'byte'
-    if genmsg.msgs.is_builtin(base_type):
-        if base_type not in MSG_TYPE_TO_KL_TYPE.keys():
-            raise NotImplementedException('ROS type  \'%s\' not supported right now' % base_type)
-        kl_type = MSG_TYPE_TO_KL_TYPE[base_type]
-
-    # 'Byte'
-    elif len(base_type.split('/')) == 1:
-        kl_type = base_type
-
-    # 'std_msgs/Byte'
-    else:
-        pkg = base_type.split('/')[0]
-        msg = base_type.split('/')[1]
-        if package_context == pkg:
-            kl_type = 'sm%s' % msg.upper()
-        else:
-            # TODO: hack: type is always type of message, karel does not
-            #       support namespacing
-            # TODO: this should do the same trick as map_complex_type_to_routine_prefix()
-            kl_type = 'sm%s' % msg.upper()
-
-    if is_array:
-        if array_len is None:
-            raise NotImplementedException('Variable sized arrays not supported right now (\'%s\'' % base_type)
-        else:
-            # TODO: hack, this should be moved to template?
-            return 'ARRAY[{0}] OF {1}'.format(array_len, kl_type)
-
-    else:
-        return kl_type
+class NoKarelTypeMappingPossible(Exception):
+    pass
 
 
-def is_primitive_kl_type(_type):
-    #print "-- is_primitive_kl_type: got '%s'" % _type
-    (base_type, is_array, array_len) = genmsg.msgs.parse_type(_type)
-    # check against ROS msg types
-    return base_type in ['byte', 'int8', 'int16', 'int32',
-                    'char', 'uint8', 'uint16', 'uint32',
-                    'float32', 'float64', 'bool']
+class NoAssignedMessageIdException(Exception):
+    pass
 
 
-def msg_type_to_zero_value(package_context, _type):
+def ros_type_to_sm_id(pkg, _type, search_path, mapping_dict):
+    """
+    Tries to lookup the Simple Message Assigned Identifier for the given ROS
+    message type. Official Assigned IDs are documented in REP-I0004. Users
+    can supply mappings to IDs outside of the official set by providing yaml
+    files that contain msg (MD5 -> SM ID) pairs.
+
+    :param pkg: name of ROS package of current message, ``str``
+    :param _type: ROS message type, ``str``
+    :param search_path: dictionary mapping message namespaces to a directory locations, ``{str:str}``
+    :param mapping_dict: nested dictionary mapping pkg names to dicts containing (md5sum, id) pairs
+    :returns: Simple Message Assigned Identifier for the given ROS type, ``int``
+    :raises: :exc:`NoAssignedMessageIdException` If the given type has no registered mapping
+    """
+    # make sure we lookup mapping for base type
     (base_type, is_array, array_len) = genmsg.msgs.parse_type(_type)
     if genmsg.msgs.is_builtin(base_type):
-        return MSG_TYPE_TO_KL_ZERO_VALUE[base_type]
+        raise ValueError("Only non built-ins can have SM assigned IDs ('%s' is a ROS built-in)" % (base_type))
 
-    raise Exception("Cannot determine zero value for type '%s'" % _type)
+    #print "-- mapping: '%s'" % (base_type)
+
+    # TODO: handle special case (u)int64: ROS built-in, but not supported
+
+    # handle special case: simple message header
+    if SM_HEADER in base_type:
+        return SM_HEADER
+
+    # calculate MD5 for passed type
+    # TODO: should we re-use msg_context of msg we are generating for?
+    msg_context = genmsg.msg_loader.MsgContext.create_default()
+    # TODO: will this work with services?
+    spec = genmsg.msg_loader.load_msg_by_type(msg_context, base_type, search_path)
+    genmsg.msg_loader.load_depends(msg_context, spec, search_path)
+    md5sum = genmsg.gentools.compute_md5(msg_context, spec)
+
+    return msg_mapping.map_md5_to_sm_id(mapping_dict, md5sum)
 
 
-def is_legal_kl_ident(ident):
-    # TODO: expand checks. See KAREL RefMan, 2.1.4: User-Defined Identifiers
-    return (len(ident) <= 12) and not is_reserved_karel(ident)
-
-
-def is_reserved_karel(ident):
-    return (ident.upper() in KL_RESERVED_WORDS
-        or ident.upper() in KL_PREDEFINED_IDENTS)
-
-
-def karel_str_quote(msg_str):
-    return msg_str.replace('"', '\'')
-
-
-def msg_has_sm_header(spec):
-    """ Determines whether the message has a field of type sm_hdr_t
+def map_builtin_to_karel(_type):
     """
-    for field in spec.parsed_fields():
-        if SM_HEADER_NAME in field.type:
-            return True
-    return False
-
-
-def calculate_msg_length(spec):
-    return get_type_len(spec.parsed_fields())
-
-
-def load_id_mapper_file(fname):
-    from yaml import load
-    with open(fname, 'r') as f:
-        doc = load(f)
-    return doc['data']
-
-
-from genmsg.msg_loader import load_msg_by_type
-
-def get_type_len(fields):
-    ret_len = 0
-
-    for field in fields:
-        # get karel type
-        (base_type, is_array, array_len) = genmsg.msgs.parse_type(field.type)
-        sub_total = 0
-
-        if len(base_type.split('/')) > 1:
-            # type (msg) from other package
-            # TODO: load msg from other package, recursively call
-            #       method on that msg
-            if SM_HEADER_NAME in base_type:
-                sub_total += (3 * 4)
-            else:
-                # TODO: implement loading other msg types
-                # perhaps use spec.depends? and load_msg_depends(), load_msg_by_type()?
-                # same trick as map_complex_type_to_routine_prefix()
-                #return 4
-                raise NotImplementedException("%s" % base_type)
-        else:
-            kl_type = MSG_TYPE_TO_KL_TYPE[base_type]
-            sub_total = KL_TYPE_SZ[kl_type]
-            if is_array and array_len is not None:
-                sub_total *= array_len
-
-        ret_len += sub_total
-
-    return ret_len
-
-
-def needs_swap(package_context, _type):
-    (base_type, is_array, array_len) = genmsg.msgs.parse_type(_type)
-    return base_type in ['int16', 'int32', 'uint16', 'uint32', 'float32', 'float64', 'bool']
-
-
-def get_swap_func(package_context, _type):
-    (base_type, is_array, array_len) = genmsg.msgs.parse_type(_type)
-
-    assert (base_type in ['int16', 'int32', 'uint16', 'uint32', 'float32', 'float64', 'bool']), "No SWAP function for type '%s'" % base_type
-
-    if base_type in ['int16', 'uint16']:
-        return 'SWAP_SHORT'
-    elif base_type in ['int32', 'uint32', 'bool']:
-        return 'SWAP_INT'
-    elif base_type in ['float32', 'float64']:
-        return 'SWAP_REAL'
-    else:
-        # impossible
-        raise Exception("No SWAP function for type '%s'" % base_type)
-
-
-def map_complex_type_to_routine_prefix(package_context, _type):
-    # assumption: 'sm000A_t'
-    # output: 'sm000A'
-    (base_type, is_array, array_len) = genmsg.msgs.parse_type(_type)
-
-    assert (not genmsg.msgs.is_builtin(base_type)), "'%s' is a built-in, cannot map" % base_type
-
-    if SM_HEADER_NAME in _type:
-        return SM_HEADER_LIBNAME
-
-    # idea:
-    #  - load msg for _type
-    #  - calculate md5sum for msg
-    #  - use md5 to retrieve assigned id
-    #  - prefix 'sm' and return
-    #sm_id_data = load_id_mapper_file('sm_assigned_ids.yaml')
-
-    return 'smXXXX'
-
-
-def has_arrays(spec):
-    """ Determines whether the message has any fields that are arrays
+    :param _type: Name of a ROS data type, ``str``
+    :returns: Name of corresponding Karel primitive type (if possible), ``str``
+    :raises: :exc:`NoKarelTypeMappingPossible` If there is no mapping possible
     """
-    for field in spec.parsed_fields():
-        if field.is_array:
-            return True
-    return False
+    try:
+        return ROS_TO_KAREL_TYPE_MAP[_type]
+    except KeyError:
+        raise NoKarelTypeMappingPossible(
+            'ROS built-in \'%s\' not supported right now' % _type)
 
 
-def get_array_len(_type):
-    """ Returns the length of an array
-    """
-    (base_type, is_array, array_len) = genmsg.msgs.parse_type(_type)
-    assert (is_array), "Only array fields have an array length"
-    return array_len
+def maps_to_karel_primitive(ros_type):
+  """
+  Note: this method also returns False for types that are currently
+  not supported. (u)int64 is one such type.
+
+  :param ros_type: Name of a ROS data type, ``str``
+  :returns: ``True`` if the type can be mapped to a primitive Karel type, ``bool``
+  """
+  return ros_type in ROS_TO_KAREL_TYPE_MAP
 
 
 def group_fields(spec):
@@ -301,14 +130,16 @@ def group_fields(spec):
     Arrays are considered non-primitive, for reasons of readability and
     error reporting (overly long READ / WRITE statements will make it hard to
     correctly identify the source of errors).
+
+    :param spec: `MsgSpec` instance, ``MsgSpec``
+    :returns: `Field` instances in a list of lists, ``[[genmsg.msgs.Field]]``
     """
     field_groups = []
     field_group = []
 
     for field in spec.parsed_fields():
-        # readability
-        is_primitive = is_primitive_kl_type(field.type)
-        is_array  = field.is_array
+        is_primitive = maps_to_karel_primitive(field.base_type)
+        is_array = field.is_array
 
         # every field that is either an array or a non-primitive should end
         # up in its own group
@@ -327,3 +158,26 @@ def group_fields(spec):
         field_groups.append(field_group)
 
     return field_groups
+
+
+def fmt_sm_libname(sm_id):
+    # TODO: ugly, rework
+    if SM_HEADER == sm_id:
+        return 'lib' + SM_HEADER
+    return 'lib' + fmt_sm_name(sm_id)
+
+
+def fmt_sm_name(sm_id):
+    # TODO: ugly, rework
+    if SM_HEADER == sm_id:
+        return SM_HEADER
+    return 'sm%04X' % sm_id
+
+
+def fmt_sm_type(sm_id):
+    return fmt_sm_name(sm_id) + '_t'
+
+
+def calculate_msg_length(spec):
+    # TODO: implement
+    return 0
