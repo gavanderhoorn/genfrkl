@@ -49,7 +49,7 @@ if __name__ == "__main__":
         # calc md5
         md5sum = genmsg.gentools.compute_md5(msg_context, spec)
 
-        sys.stdout.write(md5sum)
+        sys.stdout.write(md5sum + '\n')
 
     else:
         parser.print_help()
