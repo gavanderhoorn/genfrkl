@@ -24,6 +24,7 @@ custom messages will still need to be manually added to the relevant nodes).
    will add these to the code, but Roboguide and `ktrans` will error out
    when trying to compile the resulting code
  - no support for ROS string fields yet
+ - has not been tested with Actions
  - ROS message and service types can only be translated if a mapping has
    been defined onto a Simple Message Identifier. Mappings for the officially
    registered *Standard Message Set* are supplied. Project-specific or custom
@@ -32,6 +33,33 @@ custom messages will still need to be manually added to the relevant nodes).
 
 Please report any additional problems and / or bugs to the Github
 [issue tracker][].
+
+
+## Type mapping
+
+The following table displays the mapping between ROS and Karel types, as used
+by the generator.
+
+| ROS      | Karel   |
+|----------|---------|
+| bool     | BOOLEAN |
+| byte     | BYTE    |
+| char     | BYTE    |
+| float32  | REAL    |
+| float64  | REAL    |
+| (u)int16 | SHORT   |
+| (u)int32 | INTEGER |
+| (u)int8  | BYTE    |
+
+Note that Karel does not support any unsigned types, and the generator maps
+unsigned message fields onto their signed Karel types. Note also that both
+(C++) float and double are mapped onto Karel `REAL`, as that is the only
+floating point type available to the generator (this conversion could lead
+to loss of precision).
+
+Any ROS type not listed in this table is currently not supported by the
+generator, and will lead to the generator reporting an error at message
+generation time.
 
 
 ## Dependencies
